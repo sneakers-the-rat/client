@@ -320,6 +320,23 @@ describe('annotator/anchoring/pdf', () => {
       });
     });
 
+    it('requires a context match for short quotes', async () => {
+      viewer.pdfViewer.setCurrentPage(2);
+      const quote = {
+        type: 'TextQuoteSelector',
+        exact: 'Netherfield',
+        prefix: 'that',
+        suffix: ' Park is occupied',
+      };
+      const range = await pdfAnchoring.anchor(container, [quote]);
+
+      assert.equal(range.toString(), 'Netherfield');
+      assert.include(
+        range.startContainer.parentElement.textContent,
+        'Netherfield Park is occupied again?'
+      );
+    });
+
     // The above test does high-level checking that whitespace mismatches don't
     // affect quote anchoring. This test checks calls to `matchQuote` in more detail.
     it('ignores spaces when searching for quote matches', async () => {

@@ -437,12 +437,23 @@ async function anchorQuote(quoteSelector, positionHint) {
         },
       };
 
-      // If we found an exact match, stop early. This improves search performance
-      // in long documents compared to testing every page.
+      // If we find a very good match, stop early.
       //
-      // A known limitation here is that the quote context (prefix and suffix)
-      // is not considered.
-      if (strippedText.slice(match.start, match.end) === strippedQuote) {
+      // There is a tradeoff here between optimizing search performance and
+      // ensuring that we have found the best match in the document.
+      //
+      // The current heuristics are:
+      //
+      //  - Always require an exact match for the (space-stripped) quote
+      //  - If the quote is short, then also require a very good match (score
+      //    close to 1.0) for the surrounding context.
+      const exactQuoteMatch =
+        strippedText.slice(match.start, match.end) === strippedQuote;
+
+      if (
+        exactQuoteMatch &&
+        (strippedQuote.length > 20 || match.score >= 0.95)
+      ) {
         break;
       }
     }
