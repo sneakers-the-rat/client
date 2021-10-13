@@ -131,25 +131,35 @@ describe('annotator/integrations/vitalsource', () => {
   });
 
   describe('VitalSourceContentIntegration', () => {
-    let integration;
+    let integrations;
+
+    function createIntegration() {
+      const integration = new VitalSourceContentIntegration();
+      integrations.push(integration);
+      return integration;
+    }
 
     beforeEach(() => {
-      integration = new VitalSourceContentIntegration();
+      integrations = [];
     });
 
     afterEach(() => {
-      integration.destroy();
+      integrations.forEach(int => int.destroy());
     });
 
     it('allows annotation', () => {
+      const integration = createIntegration();
       assert.equal(integration.canAnnotate(), true);
     });
 
     it('does not support side-by-side mode', () => {
+      const integration = createIntegration();
       assert.equal(integration.fitSideBySide(), false);
     });
 
     it('stops mouse events from propagating to parent frame', () => {
+      createIntegration();
+
       const events = ['mousedown', 'mouseup', 'mouseout'];
 
       for (let eventName of events) {
@@ -165,6 +175,7 @@ describe('annotator/integrations/vitalsource', () => {
     });
 
     it('delegates to HTML integration for anchoring', async () => {
+      const integration = createIntegration();
       integration.contentContainer();
       assert.calledWith(fakeHTMLIntegration.contentContainer);
 
@@ -183,6 +194,7 @@ describe('annotator/integrations/vitalsource', () => {
 
     describe('#getMetadata', () => {
       it('returns book metadata', async () => {
+        const integration = createIntegration();
         const metadata = await integration.getMetadata();
         assert.equal(metadata.title, document.title);
         assert.deepEqual(metadata.link, []);
@@ -201,6 +213,7 @@ describe('annotator/integrations/vitalsource', () => {
       });
 
       it('returns book URL excluding query string', async () => {
+        const integration = createIntegration();
         const uri = await integration.uri();
         const parsedURL = new URL(uri);
         assert.equal(parsedURL.hostname, document.location.hostname);
@@ -209,6 +222,55 @@ describe('annotator/integrations/vitalsource', () => {
           '/books/abc/epub/OPS/xhtml/chapter_001.html'
         );
         assert.equal(parsedURL.search, '');
+      });
+    });
+
+    context('in PDF documents', () => {
+      afterEach(() => {
+        document.querySelector('#pbk-page')?.remove();
+        delete window.innerPageData;
+      });
+
+      it('creates hidden text layer in PDF documents', () => {
+        const pageText = 'some test text';
+
+        window.innerPageData = {
+          glyphs: {
+            glyphs: [...pageText].map((char, index) => ({
+              l: index,
+              t: index,
+              r: index + 1,
+              b: index + 1,
+            })),
+          },
+          words: pageText,
+        };
+
+        // TODO - Put this inside a container so it doesn't modify `position`
+        // of body.
+        const fakePageImage = document.createElement('img');
+        fakePageImage.id = 'pbk-page';
+        document.body.append(fakePageImage);
+
+        createIntegration();
+
+        const textLayer = document.querySelector('hypothesis-text-layer');
+        assert.ok(textLayer);
+
+        const wordSpans = [...textLayer.querySelectorAll('span')];
+        assert.equal(wordSpans.length, 3);
+
+        assert.deepEqual(
+          wordSpans.map(s => s.textContent),
+          ['some ', 'test ', 'text ']
+        );
+
+        // TODO - Check positions of text spans.
+      });
+
+      it('adjusts hidden text layer when window is resized', () => {
+        // TODO - Resize image, dispatch "resize" event at window and check that
+        // window is resized.
       });
     });
   });
