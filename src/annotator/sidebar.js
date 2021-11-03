@@ -2,6 +2,7 @@ import Hammer from 'hammerjs';
 
 import { Bridge } from '../shared/bridge';
 import { ListenerCollection } from '../shared/listener-collection';
+import { PortProvider } from '../shared/port-provider';
 
 import { annotationCounts } from './annotation-counts';
 import BucketBar from './bucket-bar';
@@ -64,9 +65,10 @@ export default class Sidebar {
    */
   constructor(element, eventBus, guest, config = {}) {
     this._emitter = eventBus.createEmitter();
+    this._portProvider = new PortProvider(config.sidebarAppUrl);
 
     /**
-     * Channel for sidebar-host communication.
+     * Channel for host-sidebar communication.
      *
      * @type {Bridge<HostToSidebarEvent,SidebarToHostEvent>}
      */
@@ -172,23 +174,7 @@ export default class Sidebar {
     this._notifyOfLayoutChange(false);
     this._setupSidebarEvents();
 
-    /**
-     * A promise that resolves when the sidebar application is ready to
-     * communicate with the host and guest frames.
-     *
-     * @type {Promise<void>}
-     */
-    this.ready = new Promise(resolve => {
-      this._listeners.add(window, 'message', event => {
-        const { data, ports } = /** @type {MessageEvent} */ (event);
-        if (data?.type === 'hypothesisSidebarReady') {
-          this._sidebarRPC.createChannel(ports[0]);
-          resolve();
-        }
-      });
-    });
-
-    this.ready.then(() => {
+    this._sidebarRPC.onConnect(() => {
       // Show the UI
       if (this.iframeContainer) {
         this.iframeContainer.style.display = '';
@@ -210,6 +196,12 @@ export default class Sidebar {
       }
     });
 
+    const hostPort = /** @type{MessagePort} */ (
+      this._portProvider.getPort({ channel: 'host-sidebar', port: 'host' })
+    );
+    // Create channel *after* all bridge events are registered with the `on` method.
+    this._sidebarRPC.createChannel(hostPort);
+
     // Notify sidebar when a guest is unloaded. This message is routed via
     // the host frame because in Safari guest frames are unable to send messages
     // directly to the sidebar during a window's 'unload' event.
@@ -223,6 +215,7 @@ export default class Sidebar {
   }
 
   destroy() {
+    this._portProvider.destroy();
     this.bucketBar?.destroy();
     this._listeners.removeAll();
     this._hammerManager?.destroy();
