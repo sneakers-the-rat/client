@@ -4,23 +4,18 @@
  */
 
 /**
- * Events that the host sends to the sidebar
+ * Events that the guest sends to the host
  */
-export type HostToSidebarEvent =
+export type GuestToHostEvent =
   /**
-   * The host informs the sidebar that a guest frame has been destroyed
+   * The guest informs the host that text has been deselected at window.location.href.
    */
-  | 'frameDestroyed'
+  | 'textDeselectedAt'
 
   /**
-   * Highlights have been toggled on/off.
+   * The guest informs the host that text has been selected at window.location.href.
    */
-  | 'setHighlightsVisible'
-
-  /**
-   * The host informs the sidebar that the sidebar has been opened.
-   */
-  | 'sidebarOpened';
+  | 'textSelectedAt';
 
 /**
  * Events that the guest sends to the sidebar
@@ -60,6 +55,39 @@ export type GuestToSidebarEvent =
    * The guest is asking the sidebar to toggle some annotations.
    */
   | 'toggleAnnotationSelection';
+
+/**
+ * Events that the host sends to the guest
+ */
+export type HostToGuestEvent =
+  /**
+   * The host request the guest at window.location.href to create an annotation.
+   */
+  | 'createAnnotationAt'
+
+  /**
+   * The host informs the guest(s) that text should be deselected if it doesn't match the current window.location.href.
+   */
+  | 'deselectText';
+
+/**
+ * Events that the host sends to the sidebar
+ */
+export type HostToSidebarEvent =
+  /**
+   * The host informs the sidebar that a guest frame has been destroyed
+   */
+  | 'frameDestroyed'
+
+  /**
+   * Highlights have been toggled on/off.
+   */
+  | 'setHighlightsVisible'
+
+  /**
+   * The host informs the sidebar that the sidebar has been opened.
+   */
+  | 'sidebarOpened';
 
 /**
  * Events that the sidebar sends to the guest(s)
@@ -166,7 +194,9 @@ export type SidebarToHostEvent =
   | 'signupRequested';
 
 export type BridgeEvent =
+  | HostToGuestEvent
   | HostToSidebarEvent
+  | GuestToHostEvent
   | GuestToSidebarEvent
   | SidebarToGuestEvent
   | SidebarToHostEvent;

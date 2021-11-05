@@ -14,6 +14,8 @@ import { createShadowRoot } from './util/shadow-root';
 
 /**
  * @typedef {import('./guest').default} Guest
+ * @typedef {import('../types/bridge-events').GuestToHostEvent} GuestToHostEvent
+ * @typedef {import('../types/bridge-events').HostToGuestEvent} HostToGuestEvent
  * @typedef {import('../types/bridge-events').HostToSidebarEvent} HostToSidebarEvent
  * @typedef {import('../types/bridge-events').SidebarToHostEvent} SidebarToHostEvent
  * @typedef {import('../types/annotator').SidebarLayout} SidebarLayout
@@ -66,6 +68,7 @@ export default class Sidebar {
   constructor(element, eventBus, guest, config = {}) {
     this._emitter = eventBus.createEmitter();
     this._portProvider = new PortProvider(config.sidebarAppUrl);
+    this._selectionLocation = '';
 
     /**
      * Channel for host-sidebar communication.
@@ -73,6 +76,13 @@ export default class Sidebar {
      * @type {Bridge<HostToSidebarEvent,SidebarToHostEvent>}
      */
     this._sidebarRPC = new Bridge();
+
+    /**
+     * Channel for host-guest communication.
+     *
+     * @type {Bridge<HostToGuestEvent,GuestToHostEvent>}
+     */
+    this._guestRPC = new Bridge();
 
     /**
      * The `<iframe>` element containing the sidebar application.
@@ -121,7 +131,8 @@ export default class Sidebar {
     // Set up the toolbar on the left edge of the sidebar.
     const toolbarContainer = document.createElement('div');
     this.toolbar = new ToolbarController(toolbarContainer, {
-      createAnnotation: () => guest.createAnnotation(),
+      createAnnotation: () =>
+        this._guestRPC.call('createAnnotationAt', this._selectionLocation),
       setSidebarOpen: open => (open ? this.open() : this.close()),
       setHighlightsVisible: show => this.setHighlightsVisible(show),
     });
@@ -131,10 +142,6 @@ export default class Sidebar {
     } else {
       this.toolbar.useMinimalControls = false;
     }
-
-    this._emitter.subscribe('hasSelectionChanged', hasSelection => {
-      this.toolbar.newAnnotationType = hasSelection ? 'annotation' : 'note';
-    });
 
     if (this.iframeContainer) {
       // If using our own container frame for the sidebar, add the toolbar to it.
@@ -199,8 +206,20 @@ export default class Sidebar {
     const hostPort = /** @type{MessagePort} */ (
       this._portProvider.getPort({ channel: 'host-sidebar', port: 'host' })
     );
-    // Create channel *after* all bridge events are registered with the `on` method.
+    // Create channel with the sidebar *after* bridge events are registered (with the `on` method).
     this._sidebarRPC.createChannel(hostPort);
+
+    this._setupGuestEvents();
+
+    // Create channels with the guest(s) *after* bridge events are registered (with the `on` method).
+    this._portProvider.addEventListener(
+      'onHostPortRequest',
+      (port, channel) => {
+        if (channel === 'guest') {
+          this._guestRPC.createChannel(port);
+        }
+      }
+    );
 
     // Notify sidebar when a guest is unloaded. This message is routed via
     // the host frame because in Safari guest frames are unable to send messages
@@ -225,6 +244,19 @@ export default class Sidebar {
       this.iframe.remove();
     }
     this._emitter.destroy();
+  }
+
+  _setupGuestEvents() {
+    this._guestRPC.on('textSelectedAt', location => {
+      this._selectionLocation = location;
+      this._guestRPC.call('deselectText', location);
+      this.toolbar.newAnnotationType = 'annotation';
+    });
+
+    this._guestRPC.on('textDeselectedAt', location => {
+      this._guestRPC.call('deselectText', location);
+      this.toolbar.newAnnotationType = 'note';
+    });
   }
 
   _setupSidebarEvents() {
