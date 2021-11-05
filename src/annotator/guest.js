@@ -205,7 +205,12 @@ export default class Guest {
      * Integration that handles document-type specific functionality in the
      * guest.
      */
-    this._integration = createIntegration(this);
+    const [integration, isMainContentFrame] = createIntegration(
+      this,
+      this._frameIdentifier
+    );
+    this._integration = integration;
+    this._isMainContentFrame = isMainContentFrame;
 
     this._sideBySideActive = false;
 
@@ -340,6 +345,12 @@ export default class Guest {
 
     this._hostRPC.on('createAnnotationAt', location => {
       if (location === window.location.href) {
+        this._createAnnotation();
+      }
+    });
+
+    this._hostRPC.on('createNote', () => {
+      if (this._isMainContentFrame) {
         this._createAnnotation();
       }
     });

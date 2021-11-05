@@ -16,19 +16,21 @@ import {
  * guest functionality.
  *
  * @param {Annotator} annotator
- * @return {Integration}
+ * @param {string|null} frameIdentifier
+ * @return {[Integration, boolean]} - the second element in the tuple indicates
+ *   if the frame holds the main annotatable content.
  */
-export function createIntegration(annotator) {
+export function createIntegration(annotator, frameIdentifier) {
   if (isPDF()) {
-    return new PDFIntegration(annotator);
+    return [new PDFIntegration(annotator), true];
   }
 
   const vsFrameRole = vitalSourceFrameRole();
   if (vsFrameRole === 'container') {
-    return new VitalSourceContainerIntegration(annotator);
+    return [new VitalSourceContainerIntegration(annotator), false];
   } else if (vsFrameRole === 'content') {
-    return new VitalSourceContentIntegration();
+    return [new VitalSourceContentIntegration(), true];
   }
 
-  return new HTMLIntegration();
+  return [new HTMLIntegration(), frameIdentifier === null];
 }

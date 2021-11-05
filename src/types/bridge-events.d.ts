@@ -66,6 +66,11 @@ export type HostToGuestEvent =
   | 'createAnnotationAt'
 
   /**
+   * The host request the guest where the main content is found to create an annotation.
+   */
+  | 'createNote'
+
+  /**
    * The host informs the guest(s) that text should be deselected if it doesn't match the current window.location.href.
    */
   | 'deselectText';

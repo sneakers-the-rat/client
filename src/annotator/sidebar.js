@@ -131,8 +131,13 @@ export default class Sidebar {
     // Set up the toolbar on the left edge of the sidebar.
     const toolbarContainer = document.createElement('div');
     this.toolbar = new ToolbarController(toolbarContainer, {
-      createAnnotation: () =>
-        this._guestRPC.call('createAnnotationAt', this._selectionLocation),
+      createAnnotation: () => {
+        if (this.toolbar.newAnnotationType === 'annotation') {
+          this._guestRPC.call('createAnnotationAt', this._selectionLocation);
+          return;
+        }
+        this._guestRPC.call('createNote');
+      },
       setSidebarOpen: open => (open ? this.open() : this.close()),
       setHighlightsVisible: show => this.setHighlightsVisible(show),
     });
