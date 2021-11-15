@@ -21,6 +21,9 @@
 @use './components/WarningBanner';
 @use './highlights';
 
+// Make the shared package utility styles available
+@use '@hypothesis/frontend-shared/styles/util';
+
 // Sidebar
 .annotator-frame {
   // CSS reset which attempts to isolate this element and its children from
