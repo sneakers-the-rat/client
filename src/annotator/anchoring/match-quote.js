@@ -37,13 +37,13 @@ function search(text, str, maxErrors) {
       matchPos += 1;
     }
   }
-  if (exactMatches.length > 0) {
-    return exactMatches;
-  }
+  // if (exactMatches.length > 0) {
+  return exactMatches;
+  // }
 
   // If there are no exact matches, do a more expensive search for matches
   // with errors.
-  return approxSearch(text, str, maxErrors);
+  // return approxSearch(text, str, maxErrors);
 }
 
 /**
